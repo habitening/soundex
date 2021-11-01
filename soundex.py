@@ -1,4 +1,4 @@
-"""Index a name using soundex phonetic algorithm."""
+"""Index a name using the soundex phonetic algorithm."""
 
 import unittest
 
@@ -63,7 +63,7 @@ def get_American_soundex(name):
             if digit != result[-1]:
                 result.append(digit)
         elif digit != '0':
-            # Only include letters that are not aeiouyhw.
+            # Only include letters that are not aeiouyhw
             # That is, drop aeiouyhw
             result.append(digit)
         last = letter
@@ -106,7 +106,7 @@ def get_SQL_soundex(name):
 
     if LETTER_MAP[saved] == result[0]:
         # If the saved letter's digit is the same as the first digit,
-        # then drop the digit and keep the letter.
+        # then drop the digit and keep the letter
         result[0] = saved.upper()
     else:
         result.insert(0, saved.upper())

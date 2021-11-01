@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soundex</title>
+  <style type="text/css" media="screen">
+body {
+  background-color: white;
+  color: black;
+}
+  </style>
+</head>
+
+<body>
+
+<main>
+<h1>Soundex</h1>
+
+<form id="nameForm" name="nameForm">
+<p><input type="text" id="name" name="name" autofocus required maxlength="20" minlength="1" pattern="[A-Za-z]+" placeholder="name" spellcheck="false">
+<button type="submit">Index</button></p>
+
+<p>American soundex: <output id="american"></output></p>
+
+<p>SQL soundex: <output id="sql"></output></p>
+</form>
+
+<article>
+<p><a href="https://en.wikipedia.org/wiki/Soundex">Soundex</a> is a phonetic algorithm to index an English name by sound and smooth out differences in spelling.</p>
+
+<p>There are 2 variants:</p>
+
+<ol>
+  <li>American Soundex is used in the Census by the U.S. Government.</li>
+  <li>SQL Soundex is implemented in SQL databases.</li>
+</ol>
+</article>
+
+</main>
+
+<script>
+/*
+ * Map a letter to its number.
+ */
+const LETTER_MAP = new Map([
+  ['a', '0'],
+  ['b', '1'],
+  ['c', '2'],
+  ['d', '3'],
+  ['e', '0'],
+  ['f', '1'],
+  ['g', '2'],
+  ['h', '0'],
+  ['i', '0'],
+  ['j', '2'],
+  ['k', '2'],
+  ['l', '4'],
+  ['m', '5'],
+  ['n', '5'],
+  ['o', '0'],
+  ['p', '1'],
+  ['q', '2'],
+  ['r', '6'],
+  ['s', '2'],
+  ['t', '3'],
+  ['u', '0'],
+  ['v', '1'],
+  ['w', '0'],
+  ['x', '2'],
+  ['y', '0'],
+  ['z', '2']
+]);
+
+/*
+ * Return string soundex code for name indexed using American soundex.
+ */
+function getAmericanSoundex(name) {
+  if (typeof name !== 'string') {
+    throw new TypeError('name must be a non-empty string starting with a letter.');
+  }
+  if (name.length <= 0) {
+    throw new RangeError('name must be a non-empty string starting with a letter.');
+  }
+  name = name.toLowerCase();
+  if (!LETTER_MAP.has(name.substring(0, 1))) {
+    throw new RangeError('name must be a non-empty string starting with a letter.');
+  }
+
+  let last = name.substring(0, 1),
+      result = [last.toUpperCase()],
+      digit;
+  for (let letter of name.substring(1)) {
+    digit = LETTER_MAP.get(letter);
+    if (digit === LETTER_MAP.get(last)) {
+      // If two or more letters with the same number are adjacent,
+      // then only retain the first letter
+      continue;
+    }
+    if ((last === 'h') || (last === 'w')) {
+      if (digit !== result[result.length-1]) {
+        result.push(digit);
+      }
+    }
+    else if (digit !== '0') {
+      // Only include letters that are not aeiouyhw
+      // That is, drop aeiouyhw
+      result.push(digit);
+    }
+    last = letter;
+  }
+
+  // Append with zeroes until there are 3 numbers
+  result.push('000');
+  return result.join('').substring(0, 4);
+}
+
+/*
+ * Return string soundex code for name indexed using SQL soundex.
+ */
+function getSQLSoundex(name) {
+  if (typeof name !== 'string') {
+    throw new TypeError('name must be a non-empty string starting with a letter.');
+  }
+  if (name.length <= 0) {
+    throw new RangeError('name must be a non-empty string starting with a letter.');
+  }
+  name = name.toLowerCase();
+  if (!LETTER_MAP.has(name.substring(0, 1))) {
+    throw new RangeError('name must be a non-empty string starting with a letter.');
+  }
+
+  let saved = name.substring(0, 1),
+      // Map all letters to their digits
+      digits = Array.from(name).map(l => LETTER_MAP.get(l)),
+      last = digits.shift(),
+      result = [];
+  // Replace all adjacent same digits with the first digit
+  for (let digit of digits) {
+    if (digit !== last) {
+      result.push(digit);
+    }
+    last = digit;
+  }
+  // Remove the zero digits
+  result = result.filter(n => (n !== '0'));
+
+  // If the saved letter's digit is the same as the first digit,
+  // then drop the digit and keep the letter
+  last = result.shift();
+  if (LETTER_MAP.get(saved) !== last) {
+    result.unshift(last);
+  }
+  result.unshift(saved.toUpperCase());
+
+  // Append with zeroes until there are 3 numbers
+  result.push('000');
+  return result.join('').substring(0, 4);
+}
+
+/*
+ * Unit tests
+ */
+
+function test_getAmericanSoundex() {
+  for (let [value, expected] of [
+    ['Ashcraft', 'A261'],
+    ['Ashcroft', 'A261'],
+    ['Deusen', 'D250'],
+    ['Gutierrez', 'G362'],
+    ['Honeyman', 'H555'],
+    ['Jackson', 'J250'],
+    ['Lee', 'L000'],
+    ['Pfister', 'P236'],
+    ['Rubin', 'R150'],
+    ['Robert', 'R163'],
+    ['Rupert', 'R163'],
+    ['Tymczak', 'T522'],
+    ['VanDeusen', 'V532'],
+    ['Washington', 'W252']]) {
+    console.assert(getAmericanSoundex(value) === expected,
+                   {msg: 'getAmericanSoundex() failed.'});
+    console.assert(getAmericanSoundex(value.toLowerCase()) === expected,
+                   {msg: 'getAmericanSoundex() failed.'});
+    console.assert(getAmericanSoundex(value.toUpperCase()) === expected,
+                   {msg: 'getAmericanSoundex() failed.'});
+  }
+}
+
+function test_getSQLSoundex() {
+  for (let [value, expected] of [
+    ['Honeyman', 'H555'],
+    ['Robert', 'R163'],
+    ['Rupert', 'R163'],
+    ['Tymczak', 'T522']]) {
+    console.assert(getSQLSoundex(value) === expected,
+                   {msg: 'getSQLSoundex() failed.'});
+    console.assert(getSQLSoundex(value.toLowerCase()) === expected,
+                   {msg: 'getSQLSoundex() failed.'});
+    console.assert(getSQLSoundex(value.toUpperCase()) === expected,
+                   {msg: 'getSQLSoundex() failed.'});
+  }
+}
+
+test_getAmericanSoundex();
+test_getSQLSoundex();
+
+const form = document.querySelector('#nameForm');
+form.addEventListener('submit', (event) => {
+  let americanOutput = document.querySelector('#american'),
+      sqlOutput = document.querySelector('#sql');
+  americanOutput.textContent = getAmericanSoundex(form.name.value);
+  sqlOutput.textContent = getSQLSoundex(form.name.value);
+  event.preventDefault();
+});
+</script>
+</body>
+
+</html>
